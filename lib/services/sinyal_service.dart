@@ -1,5 +1,5 @@
-import 'package:deprem_iletisim/models/sinyal.dart';
-import 'package:deprem_iletisim/models/kullanici.dart';
+import 'package:deprem/models/sinyal.dart';
+import 'package:deprem/models/kullanici.dart';
 
 class SinyalService {
   Sinyal sinyalOlustur(Kullanici kullanici, String konum, String mesaj, String cihazAdi) {

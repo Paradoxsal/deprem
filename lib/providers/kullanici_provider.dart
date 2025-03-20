@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:deprem_iletisim/models/kullanici.dart';
+import 'package:deprem/models/kullanici.dart';
 
 class KullaniciProvider extends ChangeNotifier {
   Kullanici? _kullanici;

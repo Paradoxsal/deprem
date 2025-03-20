@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:deprem_iletisim/models/sinyal.dart';
-import 'package:url_launcher/url_launcher.dart'; // Telefon arama için
+import 'package:deprem/models/sinyal.dart';
+import 'package:url_launcher/url_launcher.dart'; // Düzeltildi
 
 class SinyalDetayEkrani extends StatelessWidget {
   final Sinyal sinyal;
@@ -9,8 +9,13 @@ class SinyalDetayEkrani extends StatelessWidget {
 
   Future<void> _aramayiBaslat() async {
     final String tel = 'tel:+905551234567'; // Örnek bir numara
-    if (await canLaunchUrl(Uri.parse(tel))) {
-      await launchUrl(Uri.parse(tel));
+    final Uri launchUri = Uri(
+      scheme: 'tel',
+      path: tel.substring(4), // "+90" kısmını atla
+    );
+
+    if (await canLaunchUrl(launchUri)) { // Düzeltildi
+      await launchUrl(launchUri); // Düzeltildi
     } else {
       throw 'Telefonu arama başarısız: $tel';
     }
@@ -19,13 +24,14 @@ class SinyalDetayEkrani extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Sinyal Detayları")),
+      appBar: AppBar(title: Text("Sinyal Detayları"), backgroundColor: Colors.red),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Ad Soyad: ${sinyal.adSoyad ?? 'Bilinmiyor'}", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text("Ad Soyad: ${sinyal.adSoyad ?? 'Bilinmiyor'}",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             SizedBox(height: 10),
             Text("Konum: ${sinyal.konum ?? 'Bilinmiyor'}", style: TextStyle(fontSize: 16)),
             SizedBox(height: 10),
@@ -38,6 +44,7 @@ class SinyalDetayEkrani extends StatelessWidget {
 
             // Telefonu Ara Butonu (isteğe bağlı)
             ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () => _aramayiBaslat(),
               child: Text("Ara"),
             ),

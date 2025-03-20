@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:deprem_iletisim/providers/sinyal_provider.dart';
-import 'package:deprem_iletisim/services/bluetooth_service.dart';
-import 'package:deprem_iletisim/services/sinyal_service.dart';
-import 'package:deprem_iletisim/models/sinyal.dart';
-import 'package:deprem_iletisim/screens/sinyal_detay_ekrani.dart';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
-import 'package:deprem_iletisim/services/bildirim_service.dart';
+import 'package:deprem/providers/sinyal_provider.dart';
+import 'package:deprem/services/bluetooth_service.dart'; // Düzeltildi
+import 'package:deprem/services/sinyal_service.dart';
+import 'package:deprem/models/sinyal.dart';
+import 'package:deprem/screens/sinyal_detay_ekrani.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart'; // Düzeltildi
+import 'package:deprem/services/bildirim_service.dart';
 
 class AliciEkrani extends StatefulWidget {
   @override
@@ -14,9 +14,10 @@ class AliciEkrani extends StatefulWidget {
 }
 
 class _AliciEkraniState extends State<AliciEkrani> {
-  BluetoothService _bluetoothService = BluetoothService();
+  BluetoothService _bluetoothService = BluetoothService(); // Düzeltildi
   SinyalService _sinyalService = SinyalService();
   BildirimService _bildirimService = BildirimService();
+  bool _isScanning = false; // Tarama durumunu takip etmek için
 
   @override
   void initState() {
@@ -27,38 +28,79 @@ class _AliciEkraniState extends State<AliciEkrani> {
 
   // Bluetooth dinleme fonksiyonu
   Future<void> _bluetoothDinle() async {
-    // Basit bir döngü ile, gelen verileri dinleme
-    await FlutterBluetoothSerial.instance.isAvailable.then((bool isAvailable) {
-      if (isAvailable) {
-        // Bağlantı kurmak ve verileri almak için
-        FlutterBluetoothSerial.instance.onRead().listen((BluetoothMessage message) {
-          // Gelen veriyi işle
-          String gelenVeri = String.fromCharCodes(message.data);
-          if (gelenVeri.isNotEmpty) {
-            // Gelen veriyi Sinyal'e çevir
-            Sinyal yeniSinyal = _sinyalService.sinyalOlusturFromString(gelenVeri);
+    try {
+      if (!_isScanning) {
+        setState(() {
+          _isScanning = true;
+        });
+        await FlutterBluePlus.startScan(timeout: Duration(seconds: 4));
 
-            // Sinyali provider'a ekle
-            Provider.of<SinyalProvider>(context, listen: false).sinyalEkle(yeniSinyal);
-
-            // Bildirim göster
-            _bildirimService.sinyalBildirimi("Yeni Sinyal", "Yeni bir sinyal alındı.");
-
-            print("Gelen sinyal: ${yeniSinyal.toFormattedString()}");
+        FlutterBluePlus.scanResults.listen((List<ScanResult> results) {
+          for (ScanResult scanResult in results) {
+            if (scanResult.advertisementData.serviceUuids.isNotEmpty) {
+              // Sadece belirli servisleri dinlemek için kontrol ekleyebilirsiniz.
+              scanResult.device.connectionState.listen((BluetoothDeviceState state) {
+                if (state == BluetoothDeviceState.connected) {
+                  print('Connected to ${scanResult.device.name}');
+                  // Veri alma işlemleri burada yapılmalı
+                  _veriAl(scanResult.device);
+                } else if (state == BluetoothDeviceState.disconnected) {
+                  print('Disconnected from ${scanResult.device.name}');
+                }
+              });
+            }
           }
         });
-      } else {
-        print("Bluetooth mevcut değil!");
-        // Kullanıcıya Bluetooth'un olmadığını bildir.
+
+        await Future.delayed(Duration(seconds: 5)); // Tarama süresi
+        await FlutterBluePlus.stopScan();
+        setState(() {
+          _isScanning = false;
+        });
       }
-    });
+    } catch (e) {
+      print("Bluetooth dinleme hatası: $e");
+    }
+  }
+
+  Future<void> _veriAl(BluetoothDevice device) async {
+    try {
+      if (device == null) return;
+      // Bağlan
+      await device.connect(timeout: Duration(seconds: 5));
+      List<BluetoothService> services = await device.discoverServices();
+
+      for (BluetoothService service in services) {
+        for (BluetoothCharacteristic characteristic in service.characteristics) {
+          if (characteristic.properties.read) { // Okuma özelliği kontrolü
+            List<int> values = await characteristic.read();
+            String gelenVeri = String.fromCharCodes(values);
+            print("Gelen Veri: $gelenVeri"); // Veriyi yazdır
+            if (gelenVeri.isNotEmpty) {
+              // Gelen veriyi Sinyal'e çevir
+              Sinyal yeniSinyal = _sinyalService.sinyalOlusturFromString(gelenVeri); // Bu metodu SinyalService'e ekleyeceğiz
+
+              // Sinyali provider'a ekle
+              Provider.of<SinyalProvider>(context, listen: false).sinyalEkle(yeniSinyal);
+
+              // Bildirim göster
+              _bildirimService.sinyalBildirimi("Yeni Sinyal", "Yeni bir sinyal alındı.");
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print("Veri alma hatası: $e");
+    } finally {
+      device.disconnect(); // Bağlantıyı kes
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text("Alıcı Ekranı")),
-      body: Consumer<SinyalProvider>( // Provider ile güncellemeleri dinle
+      body: Consumer<SinyalProvider>(
         builder: (context, sinyalProvider, child) {
           List<Sinyal> gelenSinyaller = sinyalProvider.gelenSinyaller;
 
@@ -90,6 +132,10 @@ class _AliciEkraniState extends State<AliciEkrani> {
             },
           );
         },
+      ),
+      floatingActionButton: _isScanning ? CircularProgressIndicator() : FloatingActionButton(
+        onPressed: _bluetoothDinle,
+        child: Icon(Icons.refresh),
       ),
     );
   }

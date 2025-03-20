@@ -2,7 +2,6 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'dart:convert';
 
 class BluetoothService {
-
   // Cihazları tara
   Future<List<BluetoothDevice>> cihazlariTara() async {
     List<BluetoothDevice> cihazlar = [];
@@ -19,7 +18,7 @@ class BluetoothService {
           }
         });
         await Future.delayed(Duration(seconds: 5)); // Tarama işleminin tamamlanması için bekleme
-        await FlutterBluePlus.stopScan();  // Taramayı durdur
+        await FlutterBluePlus.stopScan(); // Taramayı durdur
       }
     } catch (e) {
       print("Bluetooth taraması sırasında hata oluştu: $e");
@@ -44,13 +43,13 @@ class BluetoothService {
           }
         }
       }
-      return false;  // Yazılabilir karakteristik bulunamadı
+      return false; // Yazılabilir karakteristik bulunamadı
     } catch (e) {
       print("Bluetooth veri gönderme hatası: $e");
       return false; // Hata oluştu
     } finally {
       // Bağlantıyı kes (bağlantıyı kesmek isteğe bağlıdır, daha sonra tekrar kullanmak için açık bırakılabilir)
-      // cihaz.disconnect();  // Bağlantıyı kesmek gerekebilir, ancak bu satır çoğu durumda otomatik olarak yönetilir
+      cihaz.disconnect(); // Bağlantıyı kesmek gerekebilir, ancak bu satır çoğu durumda otomatik olarak yönetilir
     }
   }
 }

@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:deprem_iletisim/services/bluetooth_service.dart';
-import 'package:deprem_iletisim/services/konum_service.dart';
-import 'package:deprem_iletisim/services/sinyal_service.dart';
-import 'package:deprem_iletisim/models/kullanici.dart';
-import 'package:deprem_iletisim/providers/sinyal_provider.dart';
+import 'package:deprem/services/bluetooth_service.dart';
+import 'package:deprem/services/konum_service.dart';
+import 'package:deprem/services/sinyal_service.dart';
+import 'package:deprem/models/kullanici.dart';
+import 'package:deprem/providers/sinyal_provider.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter/services.dart';
 
 class GonderenEkrani extends StatefulWidget {
   @override
@@ -28,12 +29,11 @@ class _GonderenEkraniState extends State<GonderenEkrani> {
   @override
   void initState() {
     super.initState();
-    _kullaniciBilgileriniYukle();  // Kullanıcı bilgilerini yükle
+    _kullaniciBilgileriniYukle();
     _bluetoothCihazlariniTara();
     _konumAl();
   }
 
-  // Kullanıcı bilgilerini yükleme
   Future<void> _kullaniciBilgileriniYukle() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -42,23 +42,34 @@ class _GonderenEkraniState extends State<GonderenEkrani> {
     });
   }
 
-  // Konum alma
   Future<void> _konumAl() async {
-    final konum = await _konumService.konumAl();
-    setState(() {
-      _konum = konum;
-    });
+    try {
+      final konum = await _konumService.konumAl();
+      setState(() {
+        _konum = konum;
+      });
+    } catch (e) {
+      print("Konum alınırken hata: $e");
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("Konum bilgisi alınamadı."),
+      ));
+    }
   }
 
-  // Bluetooth cihazlarını tarama
   Future<void> _bluetoothCihazlariniTara() async {
-    List<BluetoothDevice> cihazlar = await _bluetoothService.cihazlariTara();
-    setState(() {
-      _bluetoothCihazlari = cihazlar;
-    });
+    try {
+      List<BluetoothDevice> cihazlar = await _bluetoothService.cihazlariTara();
+      setState(() {
+        _bluetoothCihazlari = cihazlar;
+      });
+    } catch (e) {
+      print("Bluetooth cihazları taranırken hata: $e");
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("Bluetooth cihazları taranamadı."),
+      ));
+    }
   }
 
-  // Sinyal gönderme
   Future<void> _sinyalGonder(BuildContext context) async {
     // Kullanıcıdan gelen verileri al
     String mesaj = _mesajController.text.trim();
@@ -83,15 +94,21 @@ class _GonderenEkraniState extends State<GonderenEkrani> {
     if (_seciliCihazAdi != null) {
       // Bluetooth cihazını bul
       BluetoothDevice? hedefCihaz = _bluetoothCihazlari.firstWhere(
-          (cihaz) => cihaz.name == _seciliCihazAdi, orElse: () => null);
+              (cihaz) => cihaz.name == _seciliCihazAdi,
+          orElse: () => null);
       if (hedefCihaz != null) {
         // Sinyali gönder
-        bool gonderimBasarili = await _bluetoothService.baglanVeGonder(
-            hedefCihaz, _sinyalService.sinyaliMetneDonustur(sinyal));
-        if (gonderimBasarili) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Sinyal gönderildi!")));
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Sinyal gönderilirken hata oluştu.")));
+        try {
+          bool gonderimBasarili = await _bluetoothService.baglanVeGonder(
+              hedefCihaz, _sinyalService.sinyaliMetneDonustur(sinyal));
+          if (gonderimBasarili) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Sinyal gönderildi!")));
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Sinyal gönderilirken hata oluştu.")));
+          }
+        } catch (e) {
+          print("Sinyal gönderilirken hata: $e");
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Sinyal gönderilirken bir hata oluştu.")));
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Seçilen cihaz bulunamadı.")));
@@ -109,14 +126,26 @@ class _GonderenEkraniState extends State<GonderenEkrani> {
 
   @override
   Widget build(BuildContext context) {
+    // Status bar'ı ve navigation bar'ı ayarlama
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor: Colors.red,
+      statusBarBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.red,
+      systemNavigationBarIconBrightness: Brightness.light,
+    ));
+
     return Scaffold(
-      appBar: AppBar(title: Text("Gönderen Ekranı")),
+      appBar: AppBar(
+        title: Text("Gönderen Ekranı"),
+        backgroundColor: Colors.red,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Kullanıcı Bilgisi Girişi ve Kaydetme (shared_preferences)
+            // Kullanıcı Bilgisi (Shared Preferences'tan alınacak)
             Row(
               children: [
                 Expanded(
@@ -127,7 +156,7 @@ class _GonderenEkraniState extends State<GonderenEkrani> {
                       setState(() {
                         _kullaniciAdi = value;
                       });
-                      _kullaniciBilgileriniKaydet(); // Değişiklikleri kaydet
+                      _kullaniciBilgileriniKaydet();
                     },
                   ),
                 ),
@@ -140,7 +169,7 @@ class _GonderenEkraniState extends State<GonderenEkrani> {
                       setState(() {
                         _kullaniciSoyadi = value;
                       });
-                      _kullaniciBilgileriniKaydet(); // Değişiklikleri kaydet
+                      _kullaniciBilgileriniKaydet();
                     },
                   ),
                 ),
@@ -158,7 +187,9 @@ class _GonderenEkraniState extends State<GonderenEkrani> {
             // Bluetooth Cihazları Listesi
             Text("Bluetooth Cihazları:"),
             Expanded(
-              child: ListView.builder(
+              child: _bluetoothCihazlari.isEmpty
+                  ? Center(child: Text("Cihaz aranıyor..."))
+                  : ListView.builder(
                 itemCount: _bluetoothCihazlari.length,
                 itemBuilder: (context, index) {
                   return RadioListTile<String>(
@@ -182,6 +213,7 @@ class _GonderenEkraniState extends State<GonderenEkrani> {
 
             // Sinyal Gönder Butonu
             ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () => _sinyalGonder(context),
               child: Text("Sinyal Gönder"),
             ),

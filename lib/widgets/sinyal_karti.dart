@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:deprem_iletisim/models/sinyal.dart';
+import 'package:deprem/models/sinyal.dart';
 
 class SinyalKarti extends StatelessWidget {
   final Sinyal sinyal;

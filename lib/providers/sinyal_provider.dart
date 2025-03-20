@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:deprem_iletisim/models/sinyal.dart';
+import 'package:deprem/models/sinyal.dart';
 
 class SinyalProvider extends ChangeNotifier {
   List<Sinyal> _gelenSinyaller = [];

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:deprem_iletisim/screens/gonderen_ekrani.dart';
-import 'package:deprem_iletisim/screens/alici_ekrani.dart';
-import 'package:deprem_iletisim/services/bildirim_service.dart';
+import 'package:deprem/screens/gonderen_ekrani.dart';
+import  'package:deprem/screens/alici_ekrani.dart';
+import 'package:deprem/services/bildirim_service.dart';
+import 'package:flutter/services.dart'; // StatusBar ve NavigationBar için
 
 class AcilisEkrani extends StatefulWidget {
   @override
@@ -12,26 +13,25 @@ class AcilisEkrani extends StatefulWidget {
 class _AcilisEkraniState extends State<AcilisEkrani> {
   bool _konumIzni = false;
   bool _bluetoothIzni = false;
-  bool _wifiIzni = false;
+  bool _wifiIzni = true; // Wi-Fi için genellikle izin gerekmez
   bool _bildirimIzni = false;
-  bool _tümIzinlerVerildi = false;
+  bool _tumIzinlerVerildi = false;
   BildirimService _bildirimService = BildirimService();
 
   @override
   void initState() {
     super.initState();
-    _bildirimService.init(); // Bildirim servisini başlat
+    _bildirimService.init();
     _izinleriKontrolEt();
   }
 
   Future<void> _izinleriKontrolEt() async {
     _konumIzni = await Permission.location.isGranted;
-    _bluetoothIzni = await Permission.bluetoothConnect.isGranted && await Permission.bluetoothScan.isGranted;  // Hem bağlantı hem de tarama izinleri
-    _wifiIzni = true; // Wi-Fi için genellikle ayrı bir izin gerekmez.  Ancak, ağ durumunu kontrol etmek için izin gerekebilir.
+    _bluetoothIzni = await Permission.bluetoothConnect.isGranted && await Permission.bluetoothScan.isGranted;
     _bildirimIzni = await Permission.notification.isGranted;
 
     setState(() {
-      _tümIzinlerVerildi = _konumIzni && _bluetoothIzni && _wifiIzni && _bildirimIzni;
+      _tumIzinlerVerildi = _konumIzni && _bluetoothIzni && _wifiIzni && _bildirimIzni;
     });
   }
 
@@ -41,27 +41,36 @@ class _AcilisEkraniState extends State<AcilisEkrani> {
       if (izin == Permission.location) _konumIzni = status.isGranted;
       if (izin == Permission.bluetoothConnect || izin == Permission.bluetoothScan) _bluetoothIzni = status.isGranted;
       if (izin == Permission.notification) _bildirimIzni = status.isGranted;
-      _tümIzinlerVerildi = _konumIzni && _bluetoothIzni && _wifiIzni && _bildirimIzni;
+      _tumIzinlerVerildi = _konumIzni && _bluetoothIzni && _wifiIzni && _bildirimIzni;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    // Status bar'ı ve navigation bar'ı ayarlama
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor: Colors.red, // Kırmızı status bar
+      statusBarBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.red, // Kırmızı navigation bar
+      systemNavigationBarIconBrightness: Brightness.light,
+    ));
+
     return Scaffold(
-      appBar: AppBar(title: Text("Deprem İletişim")),
+      appBar: AppBar(
+        title: Text("Deprem İletişim"),
+        backgroundColor: Colors.red,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Uygulama Logosu (isteğe bağlı)
             Center(
-              child: Icon(Icons.warning, size: 80, color: Colors.red), // Örnek bir logo
+              child: Icon(Icons.warning, size: 80, color: Colors.red),
             ),
             SizedBox(height: 20),
-
-            // İzin İstemeleri
             _izinBilgisi(
               izinAdi: "Konum İzni",
               izinDurumu: _konumIzni,
@@ -70,13 +79,13 @@ class _AcilisEkraniState extends State<AcilisEkrani> {
             _izinBilgisi(
               izinAdi: "Bluetooth İzni",
               izinDurumu: _bluetoothIzni,
-              izinIste: () => _izinIste(Permission.bluetoothConnect), // Sadece bağlantı izni yeterli olabilir
+              izinIste: () => _izinIste(Permission.bluetoothConnect),
             ),
             _izinBilgisi(
               izinAdi: "Wi-Fi Erişimi",
               izinDurumu: _wifiIzni,
               izinIste: () => {}, // Wi-Fi için izin genellikle gerekmez
-              izinAciklama: "Wi-Fi bağlantınızın olması yeterlidir."
+              izinAciklama: "Wi-Fi bağlantınızın olması yeterlidir.",
             ),
             _izinBilgisi(
               izinAdi: "Bildirim İzni",
@@ -84,19 +93,16 @@ class _AcilisEkraniState extends State<AcilisEkrani> {
               izinIste: () => _izinIste(Permission.notification),
             ),
             SizedBox(height: 20),
-
-            // Devam Et Butonu
             ElevatedButton(
-              onPressed: _tümIzinlerVerildi
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: _tumIzinlerVerildi
                   ? () {
-                // Kullanıcı tercihlerine göre gönderen veya alıcı ekranına git
-                // Örneğin, shared_preferences ile kullanıcının tercihi kaydedilebilir.
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => GonderenEkrani()), // Varsayılan olarak Gönderen ekranına git
-                );
-              }
-                  : null, // İzinler verilmediyse butonu devre dışı bırak
+                      Navigator.pushReplacement( // pushReplacement kullanıldı
+                        context,
+                        MaterialPageRoute(builder: (context) => GonderenEkrani()), // Gönderen ekranına yönlendir
+                      );
+                    }
+                  : null,
               child: Text("Devam Et"),
             ),
           ],
@@ -109,7 +115,7 @@ class _AcilisEkraniState extends State<AcilisEkrani> {
     required String izinAdi,
     required bool izinDurumu,
     required VoidCallback izinIste,
-    String? izinAciklama, // İzin için açıklama
+    String? izinAciklama,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -119,14 +125,14 @@ class _AcilisEkraniState extends State<AcilisEkrani> {
           Text(izinAdi),
           Row(
             children: [
-              if (izinAciklama != null) // İzin açıklaması varsa göster
+              if (izinAciklama != null)
                 Padding(
                   padding: const EdgeInsets.only(right: 8.0),
                   child: Text(izinAciklama, style: TextStyle(fontSize: 12)),
                 ),
-              if (izinDurumu)
-                Icon(Icons.check_circle, color: Colors.green),
+              if (izinDurumu) Icon(Icons.check_circle, color: Colors.green),
               ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                 onPressed: izinIste,
                 child: Text(izinDurumu ? "Tekrar İste" : "İzin Ver"),
               ),
